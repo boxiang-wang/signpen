@@ -1,0 +1,13 @@
+Package: signpen
+Type: Package
+Title: Perceptron Penalty for Sign Consistency
+Version: 1.0.0
+Date: 2020-05-16
+Author: Boxiang Wang and Yuan Huang
+Maintainer: Boxiang Wang <boxiang-wang@uiowa.edu>
+Description: Implements the perceptron penalty for promoting the sign consistency of coefficients of multiple models.
+Depends: Matrix
+Imports: grDevices, graphics, stats, methods
+License: GPL-2
+Repository: CRAN
+NeedsCompilation: yes
