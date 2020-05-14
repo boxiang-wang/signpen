@@ -1,10 +1,10 @@
 ! --------------------------------------------------------------------------
-! log_sign.f90: the perceptron penalty for sign consistency of logistic regression. 
+! ls_sign.f90: the perceptron penalty for sign consistency of least squared regression. 
 ! --------------------------------------------------------------------------
 !
 ! USAGE:
 ! 
-! call log_sign (lam2, lam3, gam, nobs, nvars, x, y, jd, pf, pf2, dfmax, &
+! call ls_sign (lam2, lam3, gam, nobs, nvars, x, y, jd, pf, pf2, dfmax, &
 ! & pmax, nlam, flmin, ulam, eps, isd, maxit, nalam, b0, beta, &
 ! & ibeta, nbeta, alam, npass, jerr) 
 ! 
@@ -16,8 +16,7 @@
 !    nobs = number of observations
 !    nvars = number of predictor variables
 !    x(nobs, nvars) = matrix of predictors, of dimension N * p; each row is an observation vector.
-!    y(nobs) = response variable. This argument should be a two-level factor {-1, 1} 
-!            for classification.
+!    y(nobs) = response variable. 
 !    jd(jd(1)+1) = predictor variable deletion flag
 !                  jd(1) = 0  => use all variables
 !                  jd(1) != 0 => do not use variables jd(2)...jd(jd(1)+1)
@@ -71,9 +70,9 @@
 ! 
 ! LICENSE: GNU GPL (version 2 or later)
 
-SUBROUTINE log_sign (lam2, lam3, gam, nobs, nvars, x, y, jd, pf, pf2, & 
-   & dfmax, pmax, nlam, flmin, ulam, eps, isd, maxit, nalam, &
-   & b0, beta, ibeta, nbeta, alam, npass, jerr) 
+SUBROUTINE ls_sign (lam2, lam3, gam, nobs, nvars, x, y, jd, pf, pf2, & 
+   & dfmax, pmax, nlam, flmin, ulam, eps, isd, maxit, &
+   & nalam, b0, beta, ibeta, nbeta, alam, npass, jerr) 
 
    IMPLICIT NONE
    !------- arg types ----------------------------------------------
@@ -86,12 +85,10 @@ SUBROUTINE log_sign (lam2, lam3, gam, nobs, nvars, x, y, jd, pf, pf2, &
    DOUBLE PRECISION :: ulam (nlam), alam (nlam)
    DOUBLE PRECISION :: beta (pmax, nlam), b0 (nlam)
 
-
    !------- local declarations -------------------------------------
    INTEGER :: j, l, nk, ju (nvars)
    DOUBLE PRECISION :: xmean (nvars), xnorm (nvars), maj (nvars)
    LOGICAL :: strong
-
    !------- preliminary step ---------------------------------------
    CALL chkvars (nobs, nvars, x, ju)
    IF (jd(1) > 0) ju(jd(2:(jd(1)+1))) = 0
@@ -112,8 +109,8 @@ SUBROUTINE log_sign (lam2, lam3, gam, nobs, nvars, x, y, jd, pf, pf2, &
    strong = .TRUE.
 
    !------- first standardize the data -----------------------------
-   CALL Standard (nobs, nvars, x, ju, isd, xmean, xnorm, maj)
-   CALL log_sign_path (lam2, lam3, gam, maj, nobs, nvars, x, y, ju, &
+   CALL standard (nobs, nvars, x, ju, isd, xmean, xnorm, maj)
+   CALL ls_sign_path (lam2, lam3, gam, maj, nobs, nvars, x, y, ju, &
       & pf, pf2, dfmax, pmax, nlam, flmin, ulam, eps, maxit, strong, &
       & nalam, b0, beta, ibeta, nbeta, alam, npass, jerr)
    IF (jerr > 0) RETURN  ! check error after calling function
@@ -130,9 +127,9 @@ SUBROUTINE log_sign (lam2, lam3, gam, nobs, nvars, x, y, jd, pf, pf2, &
        & xmean(ibeta(1:nk)))
    ENDDO
    RETURN
-END SUBROUTINE log_sign
+END SUBROUTINE ls_sign
 
-SUBROUTINE log_sign_path (lam2, lam3, gam, maj, nobs, nvars, x, y, &
+SUBROUTINE ls_sign_path (lam2, lam3, gam, maj, nobs, nvars, x, y, &
    & ju, pf, pf2, dfmax, pmax, nlam, flmin, ulam, eps, maxit, &
    & strong, nalam, b0, beta, m, nbeta, alam, npass, jerr)
 
@@ -152,10 +149,9 @@ SUBROUTINE log_sign_path (lam2, lam3, gam, maj, nobs, nvars, x, y, &
    LOGICAL :: strong
 
    !------- local declarations -------------------------------------
-   DOUBLE PRECISION :: d, dif, oldb, u, v, al, alf
-   DOUBLE PRECISION :: dl (nobs), r (nobs)
-   DOUBLE PRECISION :: b (0:nvars), oldbeta (0:nvars)
-   INTEGER :: i, k, j, l, ctr, ni, me, mnl, mm (nvars)
+   DOUBLE PRECISION :: d, dif, oldb, u, v, al, alf, ninv
+   DOUBLE PRECISION :: r (nobs), b (0:nvars), oldbeta (0:nvars)
+   INTEGER :: k, j, l, ctr, ni, me, mnl, mm (nvars)
 
    !------- local declarations for the strong rule -----------------
    INTEGER :: jx, jxx (nvars)
@@ -163,15 +159,16 @@ SUBROUTINE log_sign_path (lam2, lam3, gam, maj, nobs, nvars, x, y, &
 
    !------- some initial setup ------------------------------------- 
    al = 0.0D0
-   r = 0.0D0
+   r = y
    b = 0.0D0
    oldbeta = 0.0D0
    m = 0
    mm = 0
    npass = 0
    ni = npass
-   maj = maj * 0.25
-   alf = 0.01D0
+   !maj = maj
+   alf = 1.0D-2
+   ninv = 1.0D0 / nobs
 
    ! strong rule
    !   jxx = 0 using the strong rule
@@ -187,13 +184,8 @@ SUBROUTINE log_sign_path (lam2, lam3, gam, maj, nobs, nvars, x, y, &
    mnl = Min (MNLAM, nlam)
    IF (flmin < 1.0D0) THEN
       flmin = Max (MFL, flmin)
-      alf = flmin ** (1.0D0 / (nlam-1.0D0))
+      alf = flmin ** (1.0D0 / (Dble(nlam)-1.0D0))
    ENDIF
-   vl = 0.0D0
-   vl = dot_product(y/(1.0D0+Exp(r)), x(:, j))
-   !CALL logdrv(nobs, nvars, x, y, r, vl)
-   ga = Abs (vl)
-
    loop_lambda: DO l = 1, nlam
       al0 = al
       IF (flmin >= 1.0D0) THEN
@@ -205,11 +197,12 @@ SUBROUTINE log_sign_path (lam2, lam3, gam, maj, nobs, nvars, x, y, &
             al = BIG
          ELSE IF (l == 2) THEN
             al0 = 0.0D0
+            vl = Matmul(r, x) * ninv
+            ga = Abs (vl)
             DO j = 1, nvars
                IF (ju(j) /= 0) THEN
                   IF (pf(j) > 0.0D0) THEN
-                     al0 = Max (al0, Abs(dot_product(y/(1.0D0+Exp(r)), &
-                      & x(:, j)))/pf(j))
+                     al0 = Max (al0, ga(j) / pf(j))
                   ENDIF
                ENDIF
             ENDDO
@@ -217,7 +210,6 @@ SUBROUTINE log_sign_path (lam2, lam3, gam, maj, nobs, nvars, x, y, &
          ENDIF
       ENDIF
       ctr = 0
-
       !---------- check strong rule (in lamdba loop) ------------------
       tlam = 2.0 * al - al0
       loop_strong_rule: DO j = 1, nvars
@@ -244,15 +236,12 @@ SUBROUTINE log_sign_path (lam2, lam3, gam, maj, nobs, nvars, x, y, &
                   ! Note that most literature define the margin as u, 
                   !    but the margin is actually r in the code.
                   ! u: 
-                  ! \sum_{i=1}^n V'(r_i)y_i x_{ij}
-                  DO i = 1, nobs   
-                     dl(i) = -1.0D0 / (1.0D0 + Exp(r(i)))
-                     u = u + dl(i) * y(i) * x(i, k)
-                  ENDDO 
+                  ! \sum_{i=1}^n （(y_i - r_i)^2)') x_{ij}
+                  u = Dot_product(r, x(:, k))
                   ! u:
-                  ! M \tilde{\beta_j} - 1/n * (\sum_{i=1}^n V'(r_i)y_i x_{ij} )
-                  u = maj(k) * b(k) - u / nobs
-                  v = al * pf(k)
+                  ! M \tilde{\beta_j} - 1/n * (\sum_{i=1}^n (y_i - r_i)^2)') x_{ij} )
+                  u = maj(k) * b(k) + u * ninv
+                  v = al * pf(k) 
                   IF (gam(k) * u < 0) v = v + lam3 * Abs(gam(k))
                   v = Abs (u) - v
                   ! The update of the coefficients in Algorithm 1:
@@ -264,7 +253,7 @@ SUBROUTINE log_sign_path (lam2, lam3, gam, maj, nobs, nvars, x, y, &
                   d = b(k) - oldb
                   IF (Abs (d) > 0.0D0) THEN
                      dif = Max (dif, d * d)  !!!
-                     r = r + y * x(:, k) * d
+                     r = r - x(:, k) * d
                      IF (mm(k) == 0) THEN
                         ni = ni + 1
                         IF (ni > pmax) EXIT
@@ -276,20 +265,15 @@ SUBROUTINE log_sign_path (lam2, lam3, gam, maj, nobs, nvars, x, y, &
             ENDDO loop_middle_update_betaj
 
             !---------- 2. update intercept ( in middle loop) ---------------
-            IF (ni > pmax) EXIT
-            d = 0.0D0
-            DO i = 1, nobs
-               dl(i) = -1.0D0 / (1.0D0 + Exp(r(i)))
-               d = d + dl(i) * y(i)
-            ENDDO
-            d = - 4.0D0 * d / nobs !!!!!!!!!
+            d = Sum(r)* ninv!!!!!!
             IF (d /= 0.0D0) THEN
                ! New intercept:
                ! newbeta0 = oldbeta0 - 1/M * \sum_{i=1}^n V'(r_i) y_i / n                  
                b(0) = b(0) +  d
-               r = r + y * d
+               r = r - d
                dif = Max (dif, d * d) !!!
             ENDIF
+            IF (ni > pmax) EXIT
             IF (dif < eps) EXIT
             IF (npass > maxit) THEN
                jerr = -1
@@ -305,12 +289,8 @@ SUBROUTINE log_sign_path (lam2, lam3, gam, maj, nobs, nvars, x, y, &
                DO j = 1, ni
                   k = m(j)
                   oldb = b(k)
-                  u = 0.0D0
-                  DO i = 1, nobs   !!!!!!!!!!!!!!!!!!!!!!
-                     dl(i) = -1.0D0 / (1.0D0 + Exp(r(i)))
-                     u = u + dl(i) * y(i) * x(i, k)
-                  ENDDO !!!!!!!!!!!!!!!!!!!!!!
-                  u = maj(k) * b(k) - u / nobs
+                  u = Dot_product (r, x(:, k)) !!!!!!!!!!!!!!!!!!!!!!
+                  u = maj(k) * b(k) + u * ninv
                   v = al * pf(k)
                   IF (gam(k) * u < 0) v = v + lam3 * Abs(gam(k))
                   v = Abs (u) - v
@@ -322,19 +302,14 @@ SUBROUTINE log_sign_path (lam2, lam3, gam, maj, nobs, nvars, x, y, &
                   d = b(k) - oldb
                   IF (Abs(d) > 0.0D0) THEN
                      dif = Max (dif, d * d) !!!
-                     r = r + y * x(:, k) * d
+                     r = r - x(:, k) * d
                   ENDIF
                ENDDO
                !---------- 2. update intercept ( in inner loop) ----------------
-               d = 0.0D0
-               DO i = 1, nobs   !!!!!!!!!!!!!!!!!!!!!!
-                  dl(i) = -1.0D0 / (1.0D0 + Exp(r(i)))
-                  d = d + dl(i) * y(i)
-               ENDDO !!!!!!!!!!!!!!!!!!!!!!
-               d = - 4.0D0 * d / nobs !!!!!!!!!
+               d = sum (r) * ninv !!!!!!!!!
                IF (d /= 0.0D0) THEN
                   b(0) = b(0) + d
-                  r = r + y * d
+                  r = r - d
                   dif = Max (dif, d * d) !!!
                ENDIF
                IF (dif < eps) EXIT
@@ -357,7 +332,7 @@ SUBROUTINE log_sign_path (lam2, lam3, gam, maj, nobs, nvars, x, y, &
          ENDDO
          IF (jx /= 0) CYCLE
          !---------- check the KKT conditions of the discarded variables--    
-         CALL logdrv (nobs, nvars, x, y, r, vl)
+         vl = Matmul(r, x) * ninv
          ga = Abs(vl)
          DO j = 1, nvars
             IF (jxx(j) == 1) CYCLE
@@ -393,21 +368,4 @@ SUBROUTINE log_sign_path (lam2, lam3, gam, maj, nobs, nvars, x, y, &
       IF (me > dfmax) EXIT
    ENDDO loop_lambda
    RETURN
-END SUBROUTINE log_sign_path
-
-! SUBROUTINE logdrv (nobs, nvars, x, y, r, vl)
-!    IMPLICIT NONE
-!    INTEGER :: nobs, nvars, i
-!    DOUBLE PRECISION :: x (nobs, nvars), y (nobs)
-!    DOUBLE PRECISION :: r (nobs), vl (nvars), dl (nobs), dly (nobs)
-!    vl = 0.0D0
-!    dl = 0.0D0
-!    DO i = 1, nobs
-!       dl(i) = -1.0D0 / (1.0D0 + Exp(r(i))
-!    ENDDO
-!    dly = dl * y
-!    DO i = 1, nvars
-!       vl(i) = Dot_product(dly, x(1:nobs, i))
-!    ENDDO
-! END SUBROUTINE logdrv
-
+END SUBROUTINE ls_sign_path
