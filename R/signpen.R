@@ -73,6 +73,10 @@
 #'  \item{jerr}{Warnings and errors; 0 if no error.}
 #'  \item{call}{The call that produced this object.}
 #' 
+#' @importFrom graphics segments
+#' @importFrom methods cbind2 new rbind2
+#' @importFrom stats approx coef predict
+#' @importFrom Matrix Diagonal
 #' @keywords perceptron penalty sign consistency
 #' @useDynLib signpen
 #' @export

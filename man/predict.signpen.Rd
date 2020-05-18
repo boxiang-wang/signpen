@@ -2,6 +2,8 @@
 % Please edit documentation in R/tools.R
 \name{predict.signpen}
 \alias{predict.signpen}
+\alias{predict.signlog}
+\alias{predict.signls}
 \title{make predictions from a "signpen" object.}
 \usage{
 \method{predict}{signpen}(object, newx, s = NULL, type = c("class",

@@ -14,8 +14,6 @@
 #'   is an observation vector.
 #' @param y response variable. This argument should be quantitative for least squares, 
 #'   and a two-level factor for logistic regression.
-#' @param group a vector of consecutive integers describing the grouping of the
-#'   coefficients (see example below).
 #' @param lambda optional user-supplied lambda sequence; default is
 #'   \code{NULL}, and \code{\link{signpen}} chooses its own sequence.
 #' @param pred.loss loss to use for cross-validation error. Valid options are:

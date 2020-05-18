@@ -7,7 +7,7 @@ Author: Boxiang Wang and Yuan Huang
 Maintainer: Boxiang Wang <boxiang-wang@uiowa.edu>
 Description: Implements the perceptron penalty for promoting the sign consistency of coefficients of multiple models. Some functions in this package are modified based on the glmnet and gcdnet packages. 
 Depends: Matrix
-Imports: grDevices, graphics, stats, methods
+Imports: graphics, stats, methods
 Encoding: UTF-8
 License: GPL-2
 Repository: CRAN

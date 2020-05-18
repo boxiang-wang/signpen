@@ -37,9 +37,6 @@ identifying what fold each observation is in.
 If supplied, \code{nfold} can be missing.}
 
 \item{\dots}{other arguments that can be passed to signpen.}
-
-\item{group}{a vector of consecutive integers describing the grouping of the
-coefficients (see example below).}
 }
 \value{
 an object of class \code{\link{cv.signpen}} is returned, which is a
